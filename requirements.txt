@@ -1,0 +1,9 @@
+torch
+transformers
+datasets
+optimum>=1.12.0
+accelerate
+sentencepiece
+accelerate
+nltk
+deap
