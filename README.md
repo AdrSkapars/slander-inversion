@@ -1,5 +1,6 @@
 # Text-to-Text Inversion of Language Models
 This repo contains the filtered datasets, notebooks and scripts needed to replicate our work.
+The scripts assume GPU availability.
 
 To replicate initial search algorithm comparisons, you must run one file per row in the table:
 ```
