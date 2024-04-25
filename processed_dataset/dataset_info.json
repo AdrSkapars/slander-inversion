@@ -1,0 +1,66 @@
+{
+  "builder_name": "parquet",
+  "citation": "",
+  "config_name": "default",
+  "dataset_name": "chatbot_arena_conversations",
+  "dataset_size": 81221714,
+  "description": "",
+  "download_checksums": {
+    "hf://datasets/lmsys/chatbot_arena_conversations@1b6335d42a1d2c7e34870c905d03ab964f7f2bd8/data/train-00000-of-00001-cced8514c7ed782a.parquet": {
+      "num_bytes": 41572998,
+      "checksum": null
+    }
+  },
+  "download_size": 41572998,
+  "features": {
+    "question_id": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "winner": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "conversation_a": [
+      {
+        "content": {
+          "dtype": "string",
+          "_type": "Value"
+        },
+        "role": {
+          "dtype": "string",
+          "_type": "Value"
+        }
+      }
+    ],
+    "conversation_b": [
+      {
+        "content": {
+          "dtype": "string",
+          "_type": "Value"
+        },
+        "role": {
+          "dtype": "string",
+          "_type": "Value"
+        }
+      }
+    ]
+  },
+  "homepage": "",
+  "license": "",
+  "size_in_bytes": 122794712,
+  "splits": {
+    "train": {
+      "name": "train",
+      "num_bytes": 81221714,
+      "num_examples": 33000,
+      "dataset_name": "chatbot_arena_conversations"
+    }
+  },
+  "version": {
+    "version_str": "0.0.0",
+    "major": 0,
+    "minor": 0,
+    "patch": 0
+  }
+}
