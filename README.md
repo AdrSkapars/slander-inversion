@@ -1,4 +1,21 @@
 # Text-to-Text Inversion of Language Models
+
+## Paper: Was it Slander? Towards Exact Inversion of Generative Language Models
+
+```
+@misc{skapars2024slanderexactinversiongenerative,
+      title={Was it Slander? Towards Exact Inversion of Generative Language Models}, 
+      author={Adrians Skapars and Edoardo Manino and Youcheng Sun and Lucas C. Cordeiro},
+      year={2024},
+      eprint={2407.11059},
+      archivePrefix={arXiv},
+      primaryClass={cs.CR},
+      url={https://arxiv.org/abs/2407.11059}, 
+}
+```
+
+## Replicating the experiments
+
 This repo contains the filtered datasets, notebooks and scripts needed to replicate our work.
 The scripts assume GPU availability.
 
