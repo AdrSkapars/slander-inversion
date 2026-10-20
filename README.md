@@ -48,6 +48,10 @@ python3 mh_embed_regular.py
 python3 mh_embed_progressive.py
 ```
 
+## Evaluation
+
+`Evaluation.ipynb` computes the paper's metrics and figures from the printed output of the scripts, saved to a file (e.g. `python3 ga_regular.py > normal_1.txt`). The embedding similarity needs an `OPENAI_API_KEY`.
+
 ## Custom experiments
 
 `Notebook.ipynb` contains the same code as the scripts in one place and is set up for Google Colab. Its T4 GPU runtime can run both models. Outside Colab, skip the `!pip install` cells and use `requirements.txt` instead. The notebook has four sections:
@@ -59,7 +63,7 @@ python3 mh_embed_progressive.py
 
 The main settings sit in the cell before each main loop:
 
-- `start_population_as`: the initialisation strategy, one of `random`, `random_dataset`, `random_fluent`, `random_fluent_output`, `output`, `output_paraphrase`, `output_synonym`, `inversion` or `inversion_sample`;
+- `start_population_as`: the initialisation strategy, one of `random`, `random_dataset`, `random_fluent`, `random_fluent_output`, `output`, `output_paraphrase`, `output_synonym`, `inversion` or `inversion_sample`. The `random_dataset` strategy samples tweets from `tweets.json`;
 - `main_model_name`: the target model, `gpt2` or `llama2`;
 - `initial_model_name`: an optional smaller model to search with before switching to the target;
 - `progressive_based_on`: whether the progressive objective reveals the next token after a fixed number of iterations or once enough of the population scores above zero.
