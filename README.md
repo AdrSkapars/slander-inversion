@@ -1,91 +1,68 @@
 # Was it Slander? Towards Exact Inversion of Generative Language Models
 
-This repo contains the filtered datasets, notebooks and scripts needed to replicate our work.
-The scripts assume GPU availability.
+This repository contains the code and filtered datasets for the paper. Given an output of a language model, we search for the input that produced it, using only the probabilities the model assigns to the output. We compare two search methods:
+
+- a genetic algorithm (GA) over tokens;
+- particle swarm optimisation (PSO) over the embeddings of a T5 autoencoder.
+
+Each method can use either the full objective or a progressive one, which reveals the target output one token at a time.
+
+## Setup
+
+```bash
+pip install -r requirements.txt
+```
+
+The scripts assume a CUDA GPU. They load the filtered Chatbot Arena pairs from `processed_dataset/` (30 pairs) or `processed_dataset2/` (50 pairs, used for the model comparison).
 
 ## Replicating the experiments
 
-To replicate initial search algorithm comparisons, you must run one file per row in the table:
-```
+Each script runs one configuration over the dataset and prints the search progress.
+
+To compare the search algorithms, run one script per row of the comparison table:
+
+```bash
 python3 ga_regular.py
 python3 ga_progressive.py
 python3 pso_regular.py
 python3 pso_progressive.py
 ```
 
-To replicate secondary model comparisons, you must run one file per line in the figure:
-```
+To compare models, run one script per line of the model-comparison figure:
+
+```bash
 python3 gpt_baseline.py
 python3 gpt_optimal.py
 python3 llama_baseline.py
 python3 llama_optimal.py
 ```
 
-Custom experiments can be run with Notebook.ipynb:
-- It is recommended that you use Google Colab
-    - Otherwise do not run cells including "!pip install" statements and see the requirements.txt file instead
-    - The T4 GPU environment is able to run both LLMs involved in our work
-- The notebook is split into several sections
-    - "Main Models" contains set up for target LLMs and the embedding model used for PSO (do not set up embedding model if using GA)
-    - "Initialisation" contains set up needed for certain initialisations (only run code related to desired initialisation)
-    - "Datasets" contains code for filtering the dataset from scratch as well as loading the local processed_dataset folders
-    - "Algorithms" contains the code for GA and PSO
-        - For both, you simply run the first blocks and everything under "Set Up"
-        - Then, depending on if you want to run rregular search or progressive search, run either "Main loop - for dataset" or "Main loop - for dataset (progressive)"
-        - The main hyperparameters are set just before algorithm functions and are given as reference below
+## Metropolis–Hastings sampling
 
+These scripts are an extension that is not part of the paper. Instead of searching for the single most likely input, they run many Metropolis–Hastings chains that sample inputs in proportion to the probability that each one produces the target output. The text-based sampler is the counterpart of GA and edits tokens. The embedding-based sampler is the counterpart of PSO and adds noise to T5 embeddings. Both have a regular and a progressive version:
+
+```bash
+python3 mh_text_regular.py
+python3 mh_text_progressive.py
+python3 mh_embed_regular.py
+python3 mh_embed_progressive.py
 ```
-# Run/ search params
-max_input_len = 15  # Won't matter while bounded=False
-num_inputs = 1000 # Population size
-max_gens = 500 # Maximum itterations of optimisation to do 
-max_minutes = None # Maximum minutes of optimisation to do 
-stop_early = True # Stop if have maxed out objective function
 
-# Initialisation params, just change the index
-start_population_as = [
-    "random",
-    "random_dataset",
-    "random_fluent",
-    "random_fluent_output",
-    "output",
-    "output_paraphrase",
-    "output_synonym",
-    "inversion",
-    "inversion_sample"
-][0]
+## Custom experiments
 
-# Params for smaller model search before larger model, just change the index
-initial_model_name = [None, "gpt2", "gpt2-large", "llama2"][1]
-# Should switch to larger model be based on the current itteration or the best score achieved for smaller model
-initial_model_based_on = ["gens", "max_score"][1]
-initial_model_param = [[50, 100], [0.01, 0.1]][0][0]
+`Notebook.ipynb` contains the same code as the scripts in one place and is set up for Google Colab. Its T4 GPU runtime can run both models. Outside Colab, skip the `!pip install` cells and use `requirements.txt` instead. The notebook has four sections:
 
-# Model params, just change the index
-main_model_name = ["gpt2", "llama2"][0]
-if main_model_name == "gpt2":
-    model = gpt2_model
-    tokenizer = gpt2_tokenizer
-    in_batch_size = 200#400
-    prefix = " "
-    remove_prefix = 0
-    vocab_size = 50257
-    prompt_template = lambda x: f"User: {x}\nAssistant:"
-elif main_model_name == "llama2":
-    model = llama2_model
-    tokenizer = llama2_tokenizer
-    in_batch_size = 200
-    prefix = "\n\n"
-    remove_prefix = 4
-    vocab_size = 32000
-    prompt_template = lambda x: f"[INST]{x}[/INST]\n\n"
+- **Main Models** loads the target models, plus the T5 autoencoder needed by PSO.
+- **Initialisation** loads the models needed by some initialisation strategies.
+- **Datasets** filters the dataset from scratch or loads the processed copies.
+- **Algorithms** contains GA and PSO, each with a regular and a progressive main loop.
 
-# Proggressive params
-# Should progressive search be based on the current itteration or the percentage of non zero inputs in the population
-progressive_based_on = ["gens", "non_zero_scores"][0]
-progressive_param = 500 # if "gens" chosen then this should match max_gens
+The main settings sit in the cell before each main loop:
 
-```
+- `start_population_as`: the initialisation strategy, one of `random`, `random_dataset`, `random_fluent`, `random_fluent_output`, `output`, `output_paraphrase`, `output_synonym`, `inversion` or `inversion_sample`;
+- `main_model_name`: the target model, `gpt2` or `llama2`;
+- `initial_model_name`: an optional smaller model to search with before switching to the target;
+- `progressive_based_on`: whether the progressive objective reveals the next token after a fixed number of iterations or once enough of the population scores above zero.
 
 ## Citation
 
