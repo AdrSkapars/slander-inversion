@@ -38,6 +38,8 @@ import math
 import numpy
 import copy
 from numpy.random import choice
+import time
+from datetime import timedelta
 
 
 #>>>>>>>>>>>>>>>>>>>>>>> Evaluation Function
@@ -318,6 +320,8 @@ def normal_sample(start_arg, end_arg):
         print("-"*30)
         print("\n\nOriginal input:", [user_text(x)])
         print("Target output:", [assistant_text(x)])
+        print("gen\tnevals\ttime          \tmax        \tmin\tavg        \tstd        ")
+        experiment_start_time = time.process_time()
 
         # Tokenize target sequence
         target_seq = prefix + assistant_text(x)
@@ -355,12 +359,13 @@ def normal_sample(start_arg, end_arg):
 
             # Print best inputs of this gen and so far
             curr_max = max(pop_eval)
-            curr_input = tokenizer.decode(pop[numpy.argmax(pop_eval)])
-            print(gen, "\t", curr_max, "\t", curr_input)
             if curr_max > best_max:
                 best_max = curr_max
-                best_input = curr_input
-            print("max", "\t", best_max, "\t", best_input)
+                best_input = tokenizer.decode(pop[numpy.argmax(pop_eval)])
+            # Log in the GA format: step line (CPU time since the pair started, as GA), then the best input so far
+            elapsed = timedelta(seconds=(time.process_time()-experiment_start_time))
+            print("%d  \t%d   \t%s\t%g  \t%g  \t%g  \t%g" % (gen+1, len(pop2), elapsed, max(pop_eval), min(pop_eval), numpy.mean(pop_eval), numpy.std(pop_eval)))
+            print([[best_max, [str(best_input).replace("'", "\\'").replace('"', '\\"')]]])
 
 
 normal_sample(0, 30)
