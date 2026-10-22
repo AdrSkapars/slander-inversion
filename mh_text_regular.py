@@ -129,8 +129,30 @@ def eval_inds(ind_list, in_batch_size, target_tokens, prompt_template=None, targ
 
 
 #>>>>>>>>>>>>>>>>>>>>>>> Mutate Function
+def hastings_factor(x, x2, vocab_size):
+    # Ratio q(x | x2) / q(x2 | x) of the proposal in mutate_sample (unbounded length), which the acceptance
+    # probability is multiplied by. A position is drawn uniformly from the n tokens, then the mutation type with
+    # weights [1, 1, 1/vocab_size, 1] (modify, insert, delete, swap), except that delete and swap are unavailable
+    # at length 1. Modify and swap are their own reverse with the same probability, so the factor is 1. An
+    # insertion goes before one of the n tokens and draws its token uniformly; the reverse deletion picks one of
+    # the n+1 tokens, so the factor also counts how many positions give the same string either way. A deletion
+    # whose reverse insertion is impossible (e.g. deleting the last token) gets a factor of 0.
+    n, m = len(x), len(x2)
+    if n == m:
+        return 1.0
+    z = lambda k: 2.0 if k == 1 else 3.0 + 1.0 / vocab_size  # sum of the mutation-type weights at length k
+    longer, shorter = (x2, x) if m > n else (x, x2)
+    deletions = [j for j in range(len(longer)) if longer[:j] + longer[j+1:] == shorter]
+    insertions = [j for j in deletions if j <= len(shorter) - 1]
+    if m > n:  # insertion x -> x2
+        return z(n) / z(m) * n / m * len(deletions) / len(insertions)
+    return z(n) / z(m) * n / m * len(insertions) / len(deletions)  # deletion x -> x2
+
+
 def mutate_sample(individual, max_input_len, bounded, vocab_size):
+    assert not bounded  # hastings_factor assumes unbounded length
     # Propose on a copy so that a rejected proposal leaves the current state unchanged
+    original = list(individual)
     individual = list(individual)
 
     # Keep track of elements index offset since inserts and deletes move it around
@@ -178,7 +200,7 @@ def mutate_sample(individual, max_input_len, bounded, vocab_size):
         individual[ind] = individual[ind2]
         individual[ind2] = temp
 
-    return individual
+    return individual, hastings_factor(original, individual, vocab_size)
 
 
 #>>>>>>>>>>>>>>>>>>>>>>> Main Loop
@@ -221,12 +243,15 @@ def normal_sample(start_arg, end_arg):
         best_input = tokenizer.decode(pop[numpy.argmax(pop_eval)])
         for gen in range(total_gens):
             # Get new candidates (based on a single mutation)
-            pop2 = [mutate_sample(individual, max_input_len, False, vocab_size) for individual in pop]
+            proposals = [mutate_sample(individual, max_input_len, False, vocab_size) for individual in pop]
+            pop2 = [proposal for proposal, _ in proposals]
+            hastings = [factor for _, factor in proposals]
             # Work out acceptence based on evaluations
             pop_eval2 = eval_inds(pop2, in_batch_size, target_tokens, prompt_template, 0)
             # Change pop based on whether accepted
             for ind_i in range(len(pop)):
-                acceptence = min(1,pop_eval2[ind_i]/pop_eval[ind_i]) if pop_eval[ind_i] != 0 else 1
+                # Metropolis-Hastings acceptance; a chain whose current input has zero probability accepts any proposal
+                acceptence = min(1, hastings[ind_i] * pop_eval2[ind_i] / pop_eval[ind_i]) if pop_eval[ind_i] != 0 else 1
                 if acceptence != 0 and (acceptence == 1 or random.random() < acceptence):
                     pop[ind_i] = pop2[ind_i]
                     pop_eval[ind_i] = pop_eval2[ind_i]

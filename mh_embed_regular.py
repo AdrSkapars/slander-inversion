@@ -319,9 +319,12 @@ def mutate_sample(individual, mutation_size):
 
     # Change each dimension of embedding
     for d in range(len(individual)):
-        # Add small amount of gausian noise while staying between -1 and 1
+        # Add small amount of gausian noise while staying between -1 and 1, reflecting off the boundary rather than
+        # clipping to it: clipping piles probability onto the edges and makes the proposal asymmetric, while a
+        # reflected Gaussian step is symmetric, so the plain Metropolis acceptance stays exact
         mut_sum = individual[d] + numpy.random.normal(0, mutation_size)
-        individual[d] = min(max(mut_sum, -1), 1)
+        folded = (mut_sum + 1) % 4
+        individual[d] = (4 - folded if folded > 2 else folded) - 1
     return individual
 
 
