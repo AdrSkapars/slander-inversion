@@ -44,6 +44,10 @@ from datetime import timedelta
 
 #>>>>>>>>>>>>>>>>>>>>>>> Evaluation Function
 def eval_inds(ind_list, in_batch_size, target_tokens, prompt_template=None, target_tok_id=0, ind_evals=None):
+    # Nothing to score (e.g. no chain has non-zero probability when the next target token is revealed); newer
+    # tokenizers decode an empty batch as one empty string, so return before decoding
+    if len(ind_list) == 0:
+        return []
     # Have to convert to list of strings to stay same with previous code
     string_list = tokenizer.batch_decode(ind_list) #, skip_special_tokens=True)
     if prompt_template is not None:
