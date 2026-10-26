@@ -40,6 +40,8 @@ import copy
 from numpy.random import choice
 import time
 from datetime import timedelta
+import gzip
+import json
 
 
 #>>>>>>>>>>>>>>>>>>>>>>> Evaluation Function
@@ -318,6 +320,18 @@ def initialise_chains(start_population_as, sample_x, max_input_len, num_inputs):
     return [ind[:max_len] if len(ind) > 0 else [random.randint(0,vocab_size-1)] for ind in pop]
 
 
+def save_states(sample_x, step, pop, pop_eval, full_target=True):
+    # Append the chains' current inputs (token IDs) and their output probabilities to states_file as one JSON line,
+    # for distribution analyses. full_target is False while a progressive run scores a prefix of the target, and
+    # pop_eval is None before the chains have been scored
+    if not save_states_every:
+        return
+    with gzip.open(states_file, "at", encoding="utf-8") as f:
+        f.write(json.dumps({"pair": sample_x, "input": user_text(sample_x), "step": step, "full_target": full_target,
+                            "states": [list(map(int, ind)) for ind in pop],
+                            "probs": None if pop_eval is None else [float(p) for p in pop_eval]}) + "\n")
+
+
 #>>>>>>>>>>>>>>>>>>>>>>> Main Loop proggressive
 # Parameters which are manually defined
 max_input_len = 15 # Longest random initialisation, as for GA
@@ -333,6 +347,10 @@ edit_weights = [1, 1, 1, 1]
 edits_per_step = 1
 # Tempering: the output probability enters the acceptance raised to this power (1 samples the posterior itself)
 likelihood_power = 1.0
+# Saving the chains for distribution analyses: every save_states_every steps, and at the start and the last
+# step, to states_file as gzipped JSON lines (0 saves nothing)
+save_states_every = 0
+states_file = "chain_states.jsonl.gz"
 num_inputs = 600
 total_gens = 200
 # Steps over which the target is revealed token by token (burn-in); the remaining steps use the full target.
@@ -369,6 +387,7 @@ def proggressive_sample(start_arg, end_arg):
         # Initialise 'population'
         pop = initialise_chains(start_population_as, x, max_input_len, num_inputs)
         pop_eval = [1 for _ in pop]
+        save_states(x, 0, pop, None, full_target=False)
         best_max = 0
         best_input = None
 
@@ -444,6 +463,8 @@ def proggressive_sample(start_arg, end_arg):
                 elapsed = timedelta(seconds=(time.process_time()-experiment_start_time))
                 print("%d  \t%d   \t%s\t%g  \t%g  \t%g  \t%g" % (gens_so_far, len(pop2), elapsed, max(pop_eval), min(pop_eval), numpy.mean(pop_eval), numpy.std(pop_eval)))
                 print([[best_max, [str(best_input).replace("'", "\\'").replace('"', '\\"')]]])
+                if save_states_every and (gens_so_far % save_states_every == 0 or gens_so_far == total_gens):
+                    save_states(x, gens_so_far, pop, pop_eval, full_target=len(run_target_tokens) == len(target_tokens))
 
 
 proggressive_sample(0, 30)
