@@ -328,6 +328,31 @@ def save_states(sample_x, step, pop, pop_eval, full_target=True):
                             "probs": None if pop_eval is None else [float(p) for p in pop_eval]}) + "\n")
 
 
+resumed = None
+
+
+def resume_chains(sample_x):
+    # The chains' last full-target snapshot for this pair in the state files of an earlier run (resume_from, in
+    # pair order), so that the run continues them: their inputs, output probabilities and step number
+    global resumed
+    if resumed is None:
+        resumed, offset = {}, 0
+        for path in resume_from:
+            last = 0
+            for line in gzip.open(path, "rt", encoding="utf-8"):
+                r = json.loads(line)
+                last = max(last, r["pair"] + 1)
+                if r["probs"] is None or not r["full_target"]:
+                    continue
+                key = offset + r["pair"]
+                if key not in resumed or r["step"] > resumed[key]["step"]:
+                    resumed[key] = r
+            offset += last
+    r = resumed[sample_x]
+    assert r["input"] == user_text(sample_x), (sample_x, r["input"])
+    return [list(s) for s in r["states"]], list(r["probs"]), r["step"]
+
+
 #>>>>>>>>>>>>>>>>>>>>>>> Main Loop
 # Parameters which are manually defined
 max_input_len = 15 # Longest random initialisation, as for GA
@@ -347,6 +372,9 @@ likelihood_power = 1.0
 # step, to states_file as gzipped JSON lines (0 saves nothing)
 save_states_every = 0
 states_file = "chain_states.jsonl.gz"
+# Continuing an earlier run: its state files in pair order; each pair's chains restart from their last saved state
+# (instead of start_population_as), and new snapshots continue its step numbers. [] starts afresh
+resume_from = []
 num_inputs = 600
 total_gens = 200
 model_name = "gpt2"
@@ -379,9 +407,13 @@ def normal_sample(start_arg, end_arg):
         target_tokens = target_tokens[remove_prefix:]
 
         # Initialise 'population'
-        pop = initialise_chains(start_population_as, x, max_input_len, num_inputs)
-        pop_eval = eval_inds(pop, in_batch_size, target_tokens, prompt_template, 0)
-        save_states(x, 0, pop, pop_eval)
+        if resume_from:  # or continue the chains of an earlier run
+            pop, pop_eval, first_step = resume_chains(x)
+        else:
+            pop = initialise_chains(start_population_as, x, max_input_len, num_inputs)
+            pop_eval = eval_inds(pop, in_batch_size, target_tokens, prompt_template, 0)
+            first_step = 0
+            save_states(x, 0, pop, pop_eval)
 
         best_max = max(pop_eval)
         best_input = tokenizer.decode(pop[numpy.argmax(pop_eval)])
@@ -417,7 +449,7 @@ def normal_sample(start_arg, end_arg):
             print("%d  \t%d   \t%s\t%g  \t%g  \t%g  \t%g" % (gen+1, len(pop2), elapsed, max(pop_eval), min(pop_eval), numpy.mean(pop_eval), numpy.std(pop_eval)))
             print([[best_max, [str(best_input).replace("'", "\\'").replace('"', '\\"')]]])
             if save_states_every and ((gen+1) % save_states_every == 0 or gen+1 == total_gens):
-                save_states(x, gen+1, pop, pop_eval)
+                save_states(x, first_step + gen+1, pop, pop_eval)
 
 
 normal_sample(0, 30)
